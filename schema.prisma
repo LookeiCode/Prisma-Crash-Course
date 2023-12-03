@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// A model represents a table
+// Each line/row within a model represents a "field" which are also the columns in your DB
+// Each field is composed of 4 different parts (the last 2 are optional)
+// 1. The name of that field/column
+// 2. The type of that field/column
+// 3. A field type modifer - ex: if we want a name field to be optional, we would add a modifer to the type (name String?) - the "?" is the field type modifier
+//  - There are only two field type modifiers
+//  - The "?" which says that field is optional
+//  - The array "[]" which says there can be multiple of this field  
+// 4. Attributes - anything that starts with the @ symbol - you can have multiple attributes on a field
+
+model User {
+  id               Int             @id @default(autoincrement())
+  age              Int
+  name             String
+  email            String          @unique
+  role             Role            @default(BASIC)
+  writtenPosts     Post[]          @relation("WrittenPosts")
+  favoritePosts    Post[]          @relation("FavoritedPosts")
+  userPreference   UserPreference? @relation(fields: [userPreferenceId], references: [id])
+  userPreferenceId Int?            @unique
+
+  @@unique([age, name])
+  @@index([email])
+}
+
+// This model demonstrates a 1-1 relationship
+// The userId must be unique because we can only have a preference reference one user, we can't have multiple preferences referencing the same one user - otherwise it's 1-M
+model UserPreference {
+  id           Int     @id @default(autoincrement())
+  emailUpdates Boolean
+  user         User?
+}
+
+model Post {
+  id            Int        @id @default(autoincrement())
+  title         String
+  averageRating Float
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  author        User       @relation("WrittenPosts", fields: [authorId], references: [id])
+  authorId      Int
+  favoritedBy   User?      @relation("FavoritedPosts", fields: [favoritedById], references: [id])
+  favoritedById Int?
+  categories    Category[]
+}
+
+// TWO REFERENCES TO THE SAME TABLE
+// In this scenario we have 2 references to the same table
+// So in our @relation for "Post" we give the @relation a "label" with quotations and whatever label name we want
+// Then in our User table we do an @relation followed by the label name
+// This is because in the User table we have a "Post[]" type twice - so it's like which specific relationship are you referencing in that table for this Post[] type field?
+
+// This model represents a M-M relationship
+// Its saying a Category can have many posts
+// And then in the Post model it says one post can have many categories
+// Prisma recognizes this and handles it by automatically creating a join table under the hood
+model Category {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  posts Post[]
+}
+
+// 1-1 (one to one relationship)
+// If a user has a table of preferences, each user has 1 refernce in that prefernce table and each preference has 1 user that it links to
+
+// 1-M (one to many relationship)
+// ex: A post has one author and an author has many posts
+
+// M-M (many to many relationship)
+// ex: One post can have a category, and a category can have many posts, so many posts can have many categories
+
+// enum is used for if you have a hard coded list of values that somethhing can be
+// ex: you're coding and want to set the role, it MUST be any of the things specified in the enum Role (in this case it must be "BASIC" or "ADMIN")
+enum Role {
+  BASIC
+  ADMIN
+}
